@@ -1,5 +1,7 @@
 # Health Information System API
 
+# Render API Link: https://health-information-system-ss87.onrender.com
+
 A production-grade REST API for managing health programs and client enrollments. Built with Flask, SQLAlchemy, JWT authentication, and full test coverage.
 
 ## Tech Stack
