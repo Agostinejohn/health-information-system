@@ -27,8 +27,8 @@ migrations/     — database migration history
 ## Local Setup
 
 ```bash
-git clone https://github.com/Agostinejohn/Health_Information_system.git
-cd Health_Information_system
+git clone https://github.com/Agostinejohn/health-information-system.git
+cd health-information-system
 
 python -m venv venv
 source venv/bin/activate        # Windows: venv\Scripts\activate
