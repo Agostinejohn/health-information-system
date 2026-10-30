@@ -4,3 +4,4 @@ from app.models.client import Client, ClientConsent, ClientDocument, ClientTimel
 from app.models.organization import Organization, OrganizationMembership, OrganizationInvitation
 from app.models.care_work import Appointment, FollowUp, Referral
 from app.models.service_delivery import AssessmentTemplate, AssessmentTemplateVersion, ServiceDelivery, ServiceDeliveryCorrection
+from app.models.report import ReportExport

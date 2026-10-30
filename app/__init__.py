@@ -9,6 +9,7 @@ from app.routes.programs import programs_bp
 from app.routes.organizations import organizations_bp
 from app.routes.care_work import care_work_bp
 from app.routes.service_delivery import service_delivery_bp
+from app.routes.reports import reports_bp
 
 
 def create_app(config=None):
@@ -33,6 +34,7 @@ def create_app(config=None):
     app.register_blueprint(organizations_bp)
     app.register_blueprint(care_work_bp)
     app.register_blueprint(service_delivery_bp)
+    app.register_blueprint(reports_bp)
 
     @app.get('/health/live')
     def liveness():
