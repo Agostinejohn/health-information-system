@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
 from marshmallow import ValidationError
-from app.auth_context import current_user, organization_member_required
+from app.authorization import current_user, organization_member_required
 from app.schemas.organization import CreateOrganizationSchema, InviteMemberSchema, AcceptInvitationSchema
 from app.services.organization_service import create_organization, list_user_organizations, invite_member, accept_invitation
 

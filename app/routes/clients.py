@@ -1,10 +1,12 @@
 from flask import Blueprint, request, jsonify
 from marshmallow import ValidationError
-from app.auth_context import organization_member_required, current_user
+from app.authorization import organization_member_required
 from app.schemas.client import ClientSchema, ConsentSchema, ClientDocumentSchema, EnrollSchema
+from app.schemas.program import EnrollmentStatusSchema
 from app.services.client_service import (
     register_client, search_clients, get_client, enroll_client,
-    find_duplicate_candidates, record_consent, record_document, get_client_timeline
+    find_duplicate_candidates, record_consent, record_document, get_client_timeline,
+    update_enrollment_status
 )
 
 clients_bp = Blueprint('clients', __name__, url_prefix='/clients')
@@ -12,6 +14,7 @@ client_schema = ClientSchema()
 consent_schema = ConsentSchema()
 document_schema = ClientDocumentSchema()
 enroll_schema = EnrollSchema()
+enrollment_status_schema = EnrollmentStatusSchema()
 
 @clients_bp.route('', methods=['POST'])
 @organization_member_required()
@@ -104,11 +107,32 @@ def enroll(user, membership, client_id):
     except ValidationError as e:
         return jsonify({'errors': e.messages}), 400
 
-    client, result = enroll_client(client_id, data['program_ids'], request.organization_id)
+    client, result = enroll_client(client_id, data['program_ids'], request.organization_id, user.id)
     if not client:
         return jsonify({'error': result}), 404
 
     return jsonify({
         'client': client.to_dict(include_programs=True),
         'enrollment_result': result
+    }), 200
+
+@clients_bp.route('/<client_id>/enrollments/<program_id>', methods=['PATCH'])
+@organization_member_required({'owner', 'admin', 'manager'})
+def update_enrollment_status_route(user, membership, client_id, program_id):
+    try:
+        data = enrollment_status_schema.load(request.get_json() or {})
+    except ValidationError as e:
+        return jsonify({'errors': e.messages}), 400
+
+    enrollment = update_enrollment_status(
+        client_id, program_id, request.organization_id, **data
+    )
+    if not enrollment:
+        return jsonify({'error': 'Enrollment not found'}), 404
+
+    return jsonify({
+        'id': enrollment.id,
+        'status': enrollment.status,
+        'reason': enrollment.reason,
+        'ended_at': enrollment.ended_at.isoformat() if enrollment.ended_at else None
     }), 200

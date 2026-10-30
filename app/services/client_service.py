@@ -1,6 +1,7 @@
+from datetime import datetime, timezone
 from app.db import db
 from app.models.client import Client, ClientConsent, ClientDocument, ClientTimelineEvent
-from app.models.program import Program
+from app.models.program import Program, ProgramEnrollment
 
 
 def register_client(name: str, age: int, organization_id: str, **fields):
@@ -57,12 +58,7 @@ def get_client(client_id: str, organization_id: str):
 def record_consent(client_id: str, organization_id: str, user_id: str, **fields):
     if not get_client(client_id, organization_id):
         return None
-    consent = ClientConsent(
-        client_id=client_id,
-        organization_id=organization_id,
-        recorded_by=user_id,
-        **fields
-    )
+    consent = ClientConsent(client_id=client_id, organization_id=organization_id, recorded_by=user_id, **fields)
     db.session.add(consent)
     db.session.commit()
     return consent
@@ -71,12 +67,7 @@ def record_consent(client_id: str, organization_id: str, user_id: str, **fields)
 def record_document(client_id: str, organization_id: str, user_id: str, **fields):
     if not get_client(client_id, organization_id):
         return None
-    document = ClientDocument(
-        client_id=client_id,
-        organization_id=organization_id,
-        uploaded_by=user_id,
-        **fields
-    )
+    document = ClientDocument(client_id=client_id, organization_id=organization_id, uploaded_by=user_id, **fields)
     db.session.add(document)
     db.session.commit()
     return document
@@ -85,28 +76,76 @@ def record_document(client_id: str, organization_id: str, user_id: str, **fields
 def get_client_timeline(client_id: str, organization_id: str):
     if not get_client(client_id, organization_id):
         return None
-    return ClientTimelineEvent.query.filter_by(
-        client_id=client_id,
-        organization_id=organization_id
-    ).order_by(ClientTimelineEvent.created_at.desc()).all()
+    return ClientTimelineEvent.query.filter_by(client_id=client_id, organization_id=organization_id).order_by(ClientTimelineEvent.created_at.desc()).all()
 
 
-def enroll_client(client_id: str, program_ids: list, organization_id: str):
+def enroll_client(client_id: str, program_ids: list, organization_id: str, user_id: str = None):
     client = Client.query.filter_by(id=client_id, organization_id=organization_id, status='active').first()
     if not client:
         return None, 'Client not found'
 
     enrolled = []
+    reactivated = []
     not_found = []
 
-    for pid in program_ids:
-        program = Program.query.filter_by(id=pid, organization_id=organization_id).first()
+    for program_id in program_ids:
+        program = Program.query.filter_by(id=program_id, organization_id=organization_id).first()
         if not program:
-            not_found.append(pid)
+            not_found.append(program_id)
             continue
-        if program not in client.programs:
-            client.programs.append(program)
+        if program.status != 'active':
+            continue
+
+        active_count = ProgramEnrollment.query.filter_by(program_id=program.id, status='active').count()
+        if program.capacity and active_count >= program.capacity:
+            continue
+
+        enrollment = ProgramEnrollment.query.filter_by(client_id=client.id, program_id=program.id).first()
+        if enrollment:
+            if enrollment.status == 'active':
+                continue
+            enrollment.status = 'active'
+            enrollment.ended_at = None
+            enrollment.enrolled_by = user_id
+            if program not in client.programs:
+                client.programs.append(program)
+            reactivated.append(program.name)
+        else:
+            enrollment = ProgramEnrollment(
+                client_id=client.id,
+                program_id=program.id,
+                organization_id=organization_id,
+                status='active',
+                enrolled_by=user_id
+            )
+            db.session.add(enrollment)
+            if program not in client.programs:
+                client.programs.append(program)
             enrolled.append(program.name)
 
     db.session.commit()
-    return client, {'enrolled': enrolled, 'not_found': not_found}
+    return client, {
+        'enrolled': enrolled,
+        'reactivated': reactivated,
+        'not_found': not_found
+    }
+
+
+def update_enrollment_status(client_id: str, program_id: str, organization_id: str, status: str, reason: str = None):
+    enrollment = ProgramEnrollment.query.filter_by(
+        client_id=client_id,
+        program_id=program_id,
+        organization_id=organization_id
+    ).first()
+    if not enrollment:
+        return None
+    enrollment.status = status
+    enrollment.reason = reason
+    enrollment.ended_at = datetime.now(timezone.utc).replace(tzinfo=None)
+    if status != 'active':
+        program = db.session.get(Program, program_id)
+        client = db.session.get(Client, client_id)
+        if program in client.programs:
+            client.programs.remove(program)
+    db.session.commit()
+    return enrollment
