@@ -1,21 +1,98 @@
 from app.db import db
-from app.models.client import Client
+from app.models.client import Client, ClientConsent, ClientDocument, ClientTimelineEvent
 from app.models.program import Program
 
-def register_client(name: str, age: int):
-    client = Client(name=name, age=age)
+
+def register_client(name: str, age: int, organization_id: str, **fields):
+    client = Client(name=name, age=age, organization_id=organization_id, **fields)
     db.session.add(client)
+    db.session.flush()
+
+    event = ClientTimelineEvent(
+        client_id=client.id,
+        organization_id=organization_id,
+        event_type='registration',
+        title='Client registered',
+        actor_id=None
+    )
+    db.session.add(event)
     db.session.commit()
     return client
 
-def search_clients(name_query: str):
-    return Client.query.filter(Client.name.ilike(f'%{name_query}%')).all()
 
-def get_client(client_id: str):
-    return db.session.get(Client, client_id)
+def search_clients(name_query: str, organization_id: str):
+    return Client.query.filter(
+        Client.organization_id == organization_id,
+        Client.name.ilike(f'%{name_query}%'),
+        Client.status == 'active'
+    ).all()
 
-def enroll_client(client_id: str, program_ids: list):
-    client = db.session.get(Client, client_id)
+
+def find_duplicate_candidates(name, organization_id, email=None, phone=None, external_reference=None, client_id=None):
+    query = Client.query.filter_by(organization_id=organization_id, status='active')
+    if client_id:
+        query = query.filter(Client.id != client_id)
+
+    candidates = []
+    normalized_name = name.strip().casefold()
+    for candidate in query.all():
+        if candidate.name.strip().casefold() == normalized_name:
+            candidates.append(candidate)
+            continue
+        if email and candidate.email and candidate.email.casefold() == email.strip().casefold():
+            candidates.append(candidate)
+            continue
+        if phone and candidate.phone and candidate.phone.strip() == phone.strip():
+            candidates.append(candidate)
+            continue
+        if external_reference and candidate.external_reference and candidate.external_reference == external_reference:
+            candidates.append(candidate)
+    return candidates
+
+
+def get_client(client_id: str, organization_id: str):
+    return Client.query.filter_by(id=client_id, organization_id=organization_id, status='active').first()
+
+
+def record_consent(client_id: str, organization_id: str, user_id: str, **fields):
+    if not get_client(client_id, organization_id):
+        return None
+    consent = ClientConsent(
+        client_id=client_id,
+        organization_id=organization_id,
+        recorded_by=user_id,
+        **fields
+    )
+    db.session.add(consent)
+    db.session.commit()
+    return consent
+
+
+def record_document(client_id: str, organization_id: str, user_id: str, **fields):
+    if not get_client(client_id, organization_id):
+        return None
+    document = ClientDocument(
+        client_id=client_id,
+        organization_id=organization_id,
+        uploaded_by=user_id,
+        **fields
+    )
+    db.session.add(document)
+    db.session.commit()
+    return document
+
+
+def get_client_timeline(client_id: str, organization_id: str):
+    if not get_client(client_id, organization_id):
+        return None
+    return ClientTimelineEvent.query.filter_by(
+        client_id=client_id,
+        organization_id=organization_id
+    ).order_by(ClientTimelineEvent.created_at.desc()).all()
+
+
+def enroll_client(client_id: str, program_ids: list, organization_id: str):
+    client = Client.query.filter_by(id=client_id, organization_id=organization_id, status='active').first()
     if not client:
         return None, 'Client not found'
 
@@ -23,7 +100,7 @@ def enroll_client(client_id: str, program_ids: list):
     not_found = []
 
     for pid in program_ids:
-        program = db.session.get(Program, pid)
+        program = Program.query.filter_by(id=pid, organization_id=organization_id).first()
         if not program:
             not_found.append(pid)
             continue
