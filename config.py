@@ -7,7 +7,9 @@ load_dotenv()
 def _get_db_url():
     url = os.getenv('DATABASE_URL', 'sqlite:///health.db')
     if url.startswith('postgres://'):
-        url = url.replace('postgres://', 'postgresql://', 1)
+        url = url.replace('postgres://', 'postgresql+psycopg2://', 1)
+    elif url.startswith('postgresql://'):
+        url = url.replace('postgresql://', 'postgresql+psycopg2://', 1)
     return url
 
 
