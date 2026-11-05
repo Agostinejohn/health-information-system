@@ -2,7 +2,7 @@
 
 A modular, multi-tenant REST API for healthcare operations, built for clinics, community health programs, and service organizations. The platform supports authentication, organizations, client records, health programs, care workflows, service delivery, reporting, integrations, and subscriptions.
 
-**Live Render deployment:** https://health-information-system-ss87.onrender.com
+**Production URL:** https://health-information-system-6qbudrf53q-ue.a.run.app
 
 ## Current Capabilities
 
@@ -181,24 +181,39 @@ flask --app run db downgrade
 flask --app run db history
 ```
 
-## Current Deployment
+## Production Deployment
 
-The project is currently deployed on Render:
+Iteration 10 deployment is hosted on Google Cloud Run:
 
-- Application URL: https://health-information-system-ss87.onrender.com
-- Runtime: Gunicorn
-- Database: managed PostgreSQL
-- Production configuration requires secure `SECRET_KEY`, `JWT_SECRET_KEY`, and `DATABASE_URL` values
+- Production URL: https://health-information-system-6qbudrf53q-ue.a.run.app
+- Platform: Google Cloud Run, `us-east1`
+- Container registry: Google Artifact Registry
+- Database: Cloud SQL PostgreSQL 16
+- Secrets: Google Secret Manager
+- Runtime: Gunicorn inside the Docker container
 
-See `Procfile` and `Dockerfile` for the deployment entry points.
+Deployment endpoints:
+
+| Endpoint | Purpose |
+|---|---|
+| `/` | API landing response |
+| `/health/live` | Container liveness check |
+| `/health/ready` | Database readiness check |
+
+The landing response only confirms that the API is running. The application features are available under routes documented above, including authentication, organizations, clients, programs, care workflows, service delivery, reporting, integrations, and billing.
+
+Database migrations were applied through a Cloud Run migration job. Existing Render configuration remains a legacy option; Google Cloud Run is the verified production deployment.
+
+See `Dockerfile`, `Procfile`, and `config.py` for container and runtime configuration.
 
 ## Roadmap
 
-- Google Cloud production deployment
-- Google Secret Manager integration for production secrets
-- Managed production database provisioning
-- Production monitoring, backups, and alerts
-- API documentation and hosted client examples
+- Production custom domain
+- Monitoring dashboards and alert policies
+- Cloud SQL backup and restore verification
+- Automated GitHub Actions deployment
+- OpenAPI/Swagger API documentation
+- Web frontend and customer-facing interface
 
 ## Security
 
@@ -211,7 +226,7 @@ See `Procfile` and `Dockerfile` for the deployment entry points.
 ## Repository
 
 - GitHub: https://github.com/Agostinejohn/health-information-system
-- Live API: https://health-information-system-ss87.onrender.com
+- Live API: https://health-information-system-6qbudrf53q-ue.a.run.app
 
 ## License
 
