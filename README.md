@@ -202,9 +202,17 @@ Deployment endpoints:
 
 The landing response only confirms that the API is running. The application features are available under routes documented above, including authentication, organizations, clients, programs, care workflows, service delivery, reporting, integrations, and billing.
 
-Database migrations were applied through a Cloud Run migration job. Existing Render configuration remains a legacy option; Google Cloud Run is the verified production deployment.
+Database migrations are applied through a Cloud Run migration job. Google Cloud Run is the current and verified production deployment.
 
 See `Dockerfile`, `Procfile`, and `config.py` for container and runtime configuration.
+
+## Deployment Status
+
+- Production API: Google Cloud Run
+- Production database: Cloud SQL PostgreSQL
+- Production secrets: Secret Manager
+- Container deployments: Artifact Registry and manual Cloud Build
+- GitHub Actions deployment automation: planned
 
 ## Roadmap
 
